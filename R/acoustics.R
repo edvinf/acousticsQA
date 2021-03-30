@@ -201,6 +201,8 @@ plotHorisontalProfile <- function(profile, header=""){
 #' @export
 plotStretch <- function(profile, header=""){
 
+  profile$sa[is.na(profile$sa)] <- 0
+
   profile$sa2 <- max(profile$sa)*profile$sa/sum(profile$sa)
   coeff <- 1/sum(profile$sa2)
   ggplot2::ggplot(profile) +
