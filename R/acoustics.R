@@ -156,7 +156,7 @@ extractTrawlsBiotic <- function(biotic, serialnumbers=NULL, sampleQuality=NULL, 
 
   st$time <- as.POSIXct(paste(st$stationstartdate, st$stationstarttime))
   st <- st[,c("logstart", "time", "latitudestart", "longitudestart")]
-  names(st) <- c("log", "time", "latitidue", "longitude")
+  names(st) <- c("log", "time", "latitude", "longitude")
 
   return(st)
 }
@@ -218,6 +218,64 @@ plotStretch <- function(profile, header=""){
     ) +
     ggplot2::ggtitle(header) +
     ggplot2::theme_bw()
+}
+
+#' Plot map
+#' @description
+#'  Plots map of acoustic registration, and optionally trawl positions.
+#'  Vertical bands in acoustic registrations are represented as points with area proportional to registration (sa).
+#' @param profile \code{\link[acousticsQA]{verticalProfile}} from acoustic registrations
+#' @param trawls \code{\link[acousticsQA]{trawlLocation}}
+#' @param lonLim limits for plots (longitudes). Vector of size 2. Will be calculated from 'profile' if NULL.
+#' @param latLim limits for plots (latitudes). Vector of size 2. Will be calculated from 'profile' if NULL.
+#' @param header header for plot
+#' @param maxSaSize controls the maximum size of points representing vertical bands in 'profile'
+#' @param saColor color of points representing vertical bands in 'profile'
+#' @param trawlColor color of points representing trawl locations.
+#' @param trawlPointShape code for point shape for trawl locations (ggplot2-codes)
+#' @export
+plotMap <- function(profile, trawls=NULL, lonLim=NULL, latLim=NULL, projection=NULL, header="", maxSaSize=5, saColor="black", trawlColor="red", trawlPointShape=10){
+
+  profile$sa[is.na(profile$sa)] <- 0
+
+  if (is.null(lonLim)){
+    lonLim <- c(min(profile$longitude), max(profile$longitude))
+  }
+  if (is.null(latLim)){
+    latLim <- c(min(profile$latitude), max(profile$latitude))
+  }
+  if (is.null(projection)) {
+    projection <- "+proj=merc +datum=WGS84"
+  }
+  newcrs <- sf::st_crs(projection)
+
+  world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
+
+  limboxP <- sf::st_bbox(sf::st_transform(sf::st_sfc(sf::st_point(x = c(min(lonLim), min(latLim))),
+                                                     sf::st_point(x = c(max(lonLim), min(latLim))),
+                                                     sf::st_point(x = c(min(lonLim), max(latLim))),
+                                                     sf::st_point(x = c(max(lonLim), max(latLim))),
+                                                     sf::st_point(x = c(min(lonLim), mean(latLim))),
+                                                     sf::st_point(x = c(max(lonLim), mean(latLim))),
+                                                     sf::st_point(x = c(mean(lonLim), min(latLim))),
+                                                     sf::st_point(x = c(mean(lonLim), max(latLim))),crs = sf::st_crs(4326)), newcrs))
+
+  points <- sf::st_as_sf(profile, coords=c("longitude","latitude"), crs=sf::st_crs(4326))
+
+  pl <- ggplot2::ggplot(points) +
+    ggplot2::geom_sf(data=world) +
+    ggplot2::geom_sf(data=points, mapping=ggplot2::aes_string(size="sa"), shape=21, alpha = 0.7, colour = "black",fill=saColor,stroke = .2) +
+    ggplot2::scale_size_area(max_size=maxSaSize) +
+    ggplot2::ggtitle(header) +
+    ggplot2::theme_bw()
+
+  if (!is.null(trawls)){
+    trawlPoints <- sf::st_as_sf(trawls, coords=c("longitude","latitude"), crs=sf::st_crs(4326))
+    pl <- pl + ggplot2::geom_sf(data=trawlPoints, shape=trawlPointShape, alpha = 0.7, colour = trawlColor, fill=trawlColor)
+  }
+
+  pl <- pl + ggplot2::coord_sf(crs = newcrs, xlim = c(limboxP$xmin, limboxP$xmax), ylim = c(limboxP$ymin, limboxP$ymax), expand = T)
+  pl
 }
 
 #' Plot concentration
@@ -284,7 +342,7 @@ plotDistanceTrawl <- function(profile, trawls, header=""){
   for (i in 1:nrow(profile)){
     minDist <- NA
     for (j in 1:nrow(trawls)){
-      dist <- geosphere::distHaversine(c(profile$longitude[i], profile$latitude[i]), c(trawls$longitude[j], trawls$latitidue[j])) / 1852
+      dist <- geosphere::distHaversine(c(profile$longitude[i], profile$latitude[i]), c(trawls$longitude[j], trawls$latitude[j])) / 1852
       minDist <- min(minDist, dist, na.rm=T)
     }
     profile$trawlDist[i] <- minDist
