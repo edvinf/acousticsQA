@@ -228,6 +228,7 @@ plotStretch <- function(profile, header=""){
 #' @param trawls \code{\link[acousticsQA]{trawlLocation}}
 #' @param lonLim limits for plots (longitudes). Vector of size 2. Will be calculated from 'profile' if NULL.
 #' @param latLim limits for plots (latitudes). Vector of size 2. Will be calculated from 'profile' if NULL.
+#' @param projection proj4string or EPSG code specifying the desired projection, see \code{\link[sf]{st_crs}}. Defaults to mercator projection.
 #' @param header header for plot
 #' @param maxSaSize controls the maximum size of points representing vertical bands in 'profile'
 #' @param saColor color of points representing vertical bands in 'profile'
