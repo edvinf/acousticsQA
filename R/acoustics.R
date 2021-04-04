@@ -196,28 +196,42 @@ plotHorisontalProfile <- function(profile, header=""){
 #' @details
 #'  Plots aggregated sa for each vertical band
 #'  Cumulative fractions are plotted on an alternate y-axis
+#'  Trawl locations are plotted as horisontal lines if provided.
 #' @param profile \code{\link[acousticsQA]{verticalProfile}}
 #' @param header header for plot
+#' @param trawls trawl locations, \code{\link[acousticsQA]{trawlLocation}}. If NULL, trawl locations are not plotted.
 #' @export
-plotStretch <- function(profile, header=""){
+plotStretch <- function(profile, header="", trawls=NULL){
 
   profile$sa[is.na(profile$sa)] <- 0
 
   profile$sa2 <- max(profile$sa)*profile$sa/sum(profile$sa)
   coeff <- 1/sum(profile$sa2)
-  ggplot2::ggplot(profile) +
+  pl <- ggplot2::ggplot(profile) +
     ggplot2::geom_col(ggplot2::aes_string(x="log", y="sa"), width = .99) +
     ggplot2::geom_line(ggplot2::aes(x=log, y=cumsum(sa2))) +
     ggplot2::scale_y_continuous(
 
       # Features of the first axis
-      name = "total sA",
+      name = "sA",
 
       # Add a second axis and specify its features
       sec.axis = ggplot2::sec_axis(~.*coeff, name="cum Frac sA")
     ) +
+    ggplot2::xlab("log (nmi)") +
     ggplot2::ggtitle(header) +
     ggplot2::theme_bw()
+
+  if (!is.null(trawls)){
+    trawls$cumSa <- as.numeric(NA)
+    for (i in 1:nrow(trawls)){
+      trawls$cumSa[i] <- sum(profile$sa[profile$log<=trawls$log[i]]) * max(profile$sa) / sum(profile$sa)
+    }
+    pl <- pl + ggplot2::geom_point(data=trawls, ggplot2::aes_string(x="log", y="cumSa"))
+    #pl <- pl + ggplot2::geom_hline(data=trawls, ggplot2::aes_string(yintercept="cumSa"))
+  }
+
+  pl
 }
 
 #' Plot map

@@ -8,3 +8,5 @@ plotStretch(prof)
 trawl <- extractTrawlsBiotic(acousticsQA::bioticSkrei2019)
 expect_true(!any(is.na(trawl$log)))
 plotMap(prof, trawl, header="torsk")
+
+plotStretch(prof, trawls=trawl)
