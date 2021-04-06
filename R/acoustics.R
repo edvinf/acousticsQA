@@ -33,6 +33,9 @@ NULL
 #'  30 (haddock)
 #'  31 (cod)
 #'
+#'  Note that acoustic categories are not uniquely specified by species,
+#'  consult survey manual and inspect survey data to make sure you cover them all.
+#'
 #' @param echosounder luf20 as read by RstoxData::readXmlFile
 #' @param targetAcocat acoustic category to extract profile for
 #' @param bins number of bins for the profile
@@ -40,7 +43,7 @@ NULL
 #' @return \code{\link[acousticsQA]{horisontalProfile}}
 #' @export
 horisontalProfileLUF20 <- function(echosounder, targetAcocat, bins=20, freq=38000){
-  target <- echosounder$sa_by_acocat[echosounder$sa_by_acocat$acocat==targetAcocat,]
+  target <- echosounder$sa_by_acocat[echosounder$sa_by_acocat$acocat %in% targetAcocat,]
   targetPC <- target[target$type=="P",]
   targetPC38 <- targetPC[targetPC$freq==freq,]
   targetPC38A <- merge(targetPC38, echosounder$frequency, all.x=T)
@@ -377,6 +380,3 @@ plotDistanceTrawl <- function(profile, trawls, header=""){
 # add fraction of total fish in 'plotConcentration' as color ?
 
 # make variant with 2-d grid mot mercator proj coordinates and survey trace, support adding trawled positions
-
-
-

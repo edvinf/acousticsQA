@@ -26,6 +26,8 @@ plotMap(
 
 \item{latLim}{limits for plots (latitudes). Vector of size 2. Will be calculated from 'profile' if NULL.}
 
+\item{projection}{proj4string or EPSG code specifying the desired projection, see \code{\link[sf]{st_crs}}. Defaults to mercator projection.}
+
 \item{header}{header for plot}
 
 \item{maxSaSize}{controls the maximum size of points representing vertical bands in 'profile'}

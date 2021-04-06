@@ -33,4 +33,7 @@ Consult reference table for acoustic categories.
  22 (saithe)
  30 (haddock)
  31 (cod)
+
+ Note that acoustic categories are not uniquely specified by species,
+ consult survey manual and inspect survey data to make sure you cover them all.
 }

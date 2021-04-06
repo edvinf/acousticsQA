@@ -4,12 +4,14 @@
 \alias{plotStretch}
 \title{Plot vertical profile}
 \usage{
-plotStretch(profile, header = "")
+plotStretch(profile, header = "", trawls = NULL)
 }
 \arguments{
 \item{profile}{\code{\link[acousticsQA]{verticalProfile}}}
 
 \item{header}{header for plot}
+
+\item{trawls}{trawl locations, \code{\link[acousticsQA]{trawlLocation}}. If NULL, trawl locations are not plotted.}
 }
 \description{
 Plots aggregated sa for each vertical band
@@ -17,4 +19,5 @@ Plots aggregated sa for each vertical band
 \details{
 Plots aggregated sa for each vertical band
  Cumulative fractions are plotted on an alternate y-axis
+ Trawl locations are plotted as horisontal lines if provided.
 }
