@@ -99,11 +99,10 @@ NULL
 #' @return \code{\link[acousticsQA]{verticalProfile}}
 #' @export
 verticalProfileLUF20 <- function(echosounder, targetAcocat, channelType="P", freq=38000){
-  target <- echosounder$sa_by_acocat[echosounder$sa_by_acocat$acocat==targetAcocat,]
+  target <- echosounder$sa_by_acocat[echosounder$sa_by_acocat$acocat %in% targetAcocat,]
   targetPC <- target[target$type==channelType,]
   targetPC38 <- targetPC[targetPC$freq==freq,]
   targetSA <- merge(targetPC38, echosounder$sa, all.x=T, by=c("log_start", "start_time", "freq", "transceiver", "type", "acocat"))
-  stopifnot(length(unique(targetSA$acocat))==1)
   stopifnot(length(unique(targetSA$freq))==1)
   stopifnot(length(unique(targetSA$transceiver))==1)
   stopifnot(length(unique(targetSA$type))==1)
@@ -316,6 +315,57 @@ plotConcentration <- function(profile, header=""){
     ggplot2::ggtitle(header) +
     ggplot2:: theme_bw()
 
+}
+
+#' Plot purity
+#' @description
+#'  Plots contributions to total echo by the purity of target acoustic category.
+#' @details
+#'  Each interpreted segment is assigned a purity, which is the fraction of the total
+#'  echo assigned to the acoustic category of interest (target acoustic category).
+#'  The cumulative contribution to the total echo of the target acoustic category is plotted against
+#'  different thresholds for purity. In the example provided below, one can for example infer that between
+#'  80\% and 90\% of the total echo assigned to cod came from segments where at least 80 % of the echo was
+#'  assigned to COD.
+#'
+#'  Purity of assignment in a segment may serve as a proxy for confidence in the assignment,
+#'  it typically reflects that categories are well separable acoustically, and that trawl-samples supports
+#'  a relatively pure assignment.
+#'
+#' @param profileTarget \code{\link[acousticsQA]{verticalProfile}} from acoustic registrations of target acoustic category
+#' @param profileAll \code{\link[acousticsQA]{verticalProfile}} from acoustic registrations of all acoustic categories
+#' @param header header for plot
+#' @param breaks vector of purities ([0,1]) to plot contributions for
+#' @param ylim limits for y-axis.
+#' @examples
+#'  prof <- verticalProfileLUF20(acousticsQA::echosounderSkrei2019, 31)
+#'  profAll <- verticalProfileLUF20(acousticsQA::echosounderSkrei2019,
+#'      unique(acousticsQA::echosounderSkrei2019$acocat$acocat))
+#'  plotPurity(prof, profAll, header="COD")
+#' @export
+plotPurity <- function(profileTarget, profileAll, header="", breaks=seq(0.5,1,.05), ylim=c(0,1)){
+  profileAll$sa[is.na(profileAll$sa)] <- 0
+  profileTarget$sa[is.na(profileTarget$sa)] <- 0
+
+  tot <- profileAll[,c("log", "time", "sa")]
+  names(tot) <- c("log", "time", "saTotal")
+  profile <- merge(profileTarget, tot)
+  profile$purity <- profile$sa / profile$saTotal
+
+  purity <- data.table::data.table(purity=breaks)
+  purity$contribution <- as.numeric(NA)
+
+  for (i in 1:nrow(purity)){
+    purity$contribution[i] <- sum(profile$sa[profile$saTotal > 0 & profile$purity >= purity$purity[i]]) / sum(profile$sa)
+  }
+
+  ggplot2::ggplot(purity) +
+    ggplot2::geom_col(ggplot2::aes_string(x="purity", y="contribution")) +
+    ggplot2::xlab("purity threshold") +
+    ggplot2::ylab("contribution") +
+    ggplot2::ggtitle(header) +
+    ggplot2::ylim(ylim) +
+    ggplot2::theme_bw()
 }
 
 #' Plot lognormal QQ plot
