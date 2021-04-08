@@ -8,7 +8,8 @@ verticalProfileLUF20(
   echosounder,
   targetAcocat,
   channelType = "P",
-  freq = 38000
+  freq = 38000,
+  roundSa = F
 )
 }
 \arguments{
@@ -19,6 +20,8 @@ verticalProfileLUF20(
 \item{channelType}{the channel type to extract profile from (e.g. Pelagic (P) or Bottom (B))}
 
 \item{freq}{frequncy of transreceiver to extract data from.}
+
+\item{roundSa}{if TRUE, sA values are rounded to integer values, for comparison with ListComScatter-output from LSSS.}
 }
 \value{
 \code{\link[acousticsQA]{verticalProfile}}

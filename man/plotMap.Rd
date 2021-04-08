@@ -40,5 +40,5 @@ plotMap(
 }
 \description{
 Plots map of acoustic registration, and optionally trawl positions.
- Vertical bands in acoustic registrations are represented as points with area proportional to registration (sa).
+ Vertical bands in acoustic registrations are represented as points with area proportional to registration (sA * distance).
 }

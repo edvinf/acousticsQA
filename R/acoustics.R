@@ -96,9 +96,10 @@ NULL
 #' @param targetAcocat acoustic category to extract profile for
 #' @param channelType the channel type to extract profile from (e.g. Pelagic (P) or Bottom (B))
 #' @param freq frequncy of transreceiver to extract data from.
+#' @param roundSa if TRUE, sA values are rounded to integer values, for comparison with ListComScatter-output from LSSS.
 #' @return \code{\link[acousticsQA]{verticalProfile}}
 #' @export
-verticalProfileLUF20 <- function(echosounder, targetAcocat, channelType="P", freq=38000){
+verticalProfileLUF20 <- function(echosounder, targetAcocat, channelType="P", freq=38000, roundSa=F){
   target <- echosounder$sa_by_acocat[echosounder$sa_by_acocat$acocat %in% targetAcocat,]
   targetPC <- target[target$type==channelType,]
   targetPC38 <- targetPC[targetPC$freq==freq,]
@@ -109,10 +110,15 @@ verticalProfileLUF20 <- function(echosounder, targetAcocat, channelType="P", fre
   targetSAInt <- targetSA[, list(sa=sum(get("sa"))), by=list(log_start=get("log_start"), start_time=get("start_time"))]
   dist <- echosounder$distance[,c("log_start", "start_time", "lat_start", "lon_start", "integrator_dist"), with=F]
   targetSAInt <- merge(targetSAInt, dist, all.y=T, by=c("log_start", "start_time"))
-  targetSAInt$start_time <- as.POSIXct(targetSAInt$start_time)
+
+  targetSAInt$start_time <- as.POSIXct(substr(targetSAInt$start_time,1,16),tz="UTC")
   targetSAInt <- targetSAInt[order(targetSAInt$start_time),]
   targetSAInt <- targetSAInt[,c("sa", "log_start", "start_time", "lat_start", "lon_start", "integrator_dist")]
   names(targetSAInt) <- c("sa", "log", "time", "latitude", "longitude", "distance")
+
+  if (roundSa){
+    targetSAInt$sa <- round(targetSAInt$sa)
+  }
 
 
   return(targetSAInt)
@@ -156,7 +162,7 @@ extractTrawlsBiotic <- function(biotic, serialnumbers=NULL, sampleQuality=NULL, 
     st <- st[st$gear %in% gearCodes]
   }
 
-  st$time <- as.POSIXct(paste(st$stationstartdate, st$stationstarttime))
+  st$time <- as.POSIXct(paste(substr(st$stationstartdate,1,10), substr(st$stationstarttime,1,5)),tz="UTC")
   st <- st[,c("logstart", "time", "latitudestart", "longitudestart")]
   names(st) <- c("log", "time", "latitude", "longitude")
 
@@ -205,13 +211,15 @@ plotHorisontalProfile <- function(profile, header=""){
 #' @export
 plotStretch <- function(profile, header="", trawls=NULL){
 
-  profile$sa[is.na(profile$sa)] <- 0
+  profile <- profile[order(profile$time),]
+  profile$logIndex <- 1:nrow(profile)
 
+  profile$sa[is.na(profile$sa)] <- 0
   profile$sa2 <- max(profile$sa)*profile$sa/sum(profile$sa)
   coeff <- 1/sum(profile$sa2)
   pl <- ggplot2::ggplot(profile) +
-    ggplot2::geom_col(ggplot2::aes_string(x="log", y="sa"), width = .99) +
-    ggplot2::geom_line(ggplot2::aes(x=log, y=cumsum(sa2))) +
+    ggplot2::geom_col(ggplot2::aes_string(x="logIndex", y="sa"), width = .99) +
+    ggplot2::geom_path(ggplot2::aes(x=logIndex, y=cumsum(sa2))) +
     ggplot2::scale_y_continuous(
 
       # Features of the first axis
@@ -220,16 +228,20 @@ plotStretch <- function(profile, header="", trawls=NULL){
       # Add a second axis and specify its features
       sec.axis = ggplot2::sec_axis(~.*coeff, name="cum Frac sA")
     ) +
+    ggplot2::scale_x_continuous(name ="log (nmi)",
+                     breaks=quantile(profile$logIndex), labels=round(profile$log[quantile(profile$logIndex)])) +
     ggplot2::xlab("log (nmi)") +
     ggplot2::ggtitle(header) +
     ggplot2::theme_bw()
 
   if (!is.null(trawls)){
     trawls$cumSa <- as.numeric(NA)
+    trawls$logIndex <- as.numeric(NA)
     for (i in 1:nrow(trawls)){
-      trawls$cumSa[i] <- sum(profile$sa[profile$log<=trawls$log[i]]) * max(profile$sa) / sum(profile$sa)
+      trawls$cumSa[i] <- sum(profile$sa[profile$time<=trawls$time[i]]) * max(profile$sa) / sum(profile$sa)
+      trawls$logIndex[i] <- max(profile$logIndex[profile$time<=trawls$time[i]])
     }
-    pl <- pl + ggplot2::geom_point(data=trawls, ggplot2::aes_string(x="log", y="cumSa"))
+    pl <- pl + ggplot2::geom_point(data=trawls, ggplot2::aes_string(x="logIndex", y="cumSa"))
     #pl <- pl + ggplot2::geom_hline(data=trawls, ggplot2::aes_string(yintercept="cumSa"))
   }
 
@@ -239,7 +251,7 @@ plotStretch <- function(profile, header="", trawls=NULL){
 #' Plot map
 #' @description
 #'  Plots map of acoustic registration, and optionally trawl positions.
-#'  Vertical bands in acoustic registrations are represented as points with area proportional to registration (sa).
+#'  Vertical bands in acoustic registrations are represented as points with area proportional to registration (sA * distance).
 #' @param profile \code{\link[acousticsQA]{verticalProfile}} from acoustic registrations
 #' @param trawls \code{\link[acousticsQA]{trawlLocation}}
 #' @param lonLim limits for plots (longitudes). Vector of size 2. Will be calculated from 'profile' if NULL.
@@ -254,6 +266,7 @@ plotStretch <- function(profile, header="", trawls=NULL){
 plotMap <- function(profile, trawls=NULL, lonLim=NULL, latLim=NULL, projection=NULL, header="", maxSaSize=5, saColor="black", trawlColor="red", trawlPointShape=10){
 
   profile$sa[is.na(profile$sa)] <- 0
+  profile$saPnmi <- profile$sa * profile$distance
 
   if (is.null(lonLim)){
     lonLim <- c(min(profile$longitude), max(profile$longitude))
@@ -281,7 +294,7 @@ plotMap <- function(profile, trawls=NULL, lonLim=NULL, latLim=NULL, projection=N
 
   pl <- ggplot2::ggplot(points) +
     ggplot2::geom_sf(data=world) +
-    ggplot2::geom_sf(data=points, mapping=ggplot2::aes_string(size="sa"), shape=21, alpha = 0.7, colour = "black",fill=saColor,stroke = .2) +
+    ggplot2::geom_sf(data=points, mapping=ggplot2::aes_string(size="saPnmi"), shape=21, alpha = 0.7, colour = "black",fill=saColor,stroke = .2) +
     ggplot2::scale_size_area(max_size=maxSaSize) +
     ggplot2::ggtitle(header) +
     ggplot2::theme_bw()
